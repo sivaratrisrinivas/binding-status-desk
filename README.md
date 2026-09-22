@@ -11,7 +11,7 @@ Everyday app for the Convex All Gas hackathon (OpenAI, Firecrawl, AgentMail).
 1. You paste a 13-character USCIS receipt number (skip dashes).
 2. A Convex action uses **Firecrawl** to fill the public form at [egov.uscis.gov](https://egov.uscis.gov/) and read the status heading + description.
 3. Convex stores `cases`, `statusSnapshots`, and `statusDiffs`. Unchanged polls are silent.
-4. When the public text actually changes, **OpenAI** writes a short restatement labeled not legal advice.
+4. When the public text actually changes, **Groq** writes a short restatement labeled not legal advice (OpenAI if `OPENAI_API_KEY` is set).
 5. **AgentMail** emails you on real diffs, and can start a watch if you email a receipt number to the desk inbox.
 6. **DEMO simulate** is a clearly labeled fake status ladder so judges can see diffs without waiting on a real receipt.
 
@@ -26,7 +26,7 @@ Public sample used in the spike: `IOE0900000001` → heading *Card Was Delivered
 - Vite + React frontend on **Convex static hosting** (`*.convex.site`)
 - Convex schema, queries, mutations, Node actions, HTTP actions, crons, scheduler
 - Firecrawl scrape actions against Case Status Online
-- OpenAI `gpt-4o-mini` for plain-language diffs
+- Groq `openai/gpt-oss-20b` for plain-language diffs (OpenAI `gpt-4o-mini` if `OPENAI_API_KEY` is set)
 - AgentMail send + webhook (`/api/agentmail/webhook`) + inbox poll cron
 
 ## Local development
@@ -53,7 +53,8 @@ Set these on the Convex deployment (`npx convex env set NAME value` or Dashboard
 | Name | Required for | Notes |
 | --- | --- | --- |
 | `FIRECRAWL_API_KEY` | Live USCIS fetches from Convex | Official Firecrawl key (`fc-…`). The CLI spike used the keyless tier; Convex outbound IPs may need a real key. |
-| `OPENAI_API_KEY` | LLM restatements | If missing, diffs still store a deterministic restatement. Model: `gpt-4o-mini`. |
+| `GROQ_API_KEY` | Runtime LLM restatements | Intended deploy path. Groq OpenAI-compatible chat completions, model `openai/gpt-oss-20b` (`llama-3.1-8b-instant` retired for free/developer). If missing and `OPENAI_API_KEY` is also unset, diffs still store a deterministic restatement. Not legal advice. |
+| `OPENAI_API_KEY` | Optional LLM restatements | Prefer-first: if set, `convex/explain.ts` uses OpenAI `gpt-4o-mini` instead of Groq. Not required for this deploy path. |
 | `AGENTMAIL_API_KEY` | Outbound + inbound mail | `am_…` from [AgentMail](https://www.agentmail.to/docs/quickstart). |
 | `AGENTMAIL_INBOX_ID` | Mail | Inbox used to send and list messages. |
 | `AGENTMAIL_WEBHOOK_SECRET` | Signed inbound webhook | Svix `whsec_…`. **Required in local and prod.** If unset, `POST /api/agentmail/webhook` returns 401 and does not process the body. |
@@ -69,7 +70,8 @@ Frontend build:
 ```bash
 npx convex login
 npx convex env set FIRECRAWL_API_KEY fc-…
-npx convex env set OPENAI_API_KEY sk-…
+npx convex env set GROQ_API_KEY gsk-…
+# optional prefer-first: npx convex env set OPENAI_API_KEY sk-…
 npx convex env set AGENTMAIL_API_KEY am-…
 npx convex env set AGENTMAIL_INBOX_ID …
 npx convex env set AGENTMAIL_WEBHOOK_SECRET whsec_…

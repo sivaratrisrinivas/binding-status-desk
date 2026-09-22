@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { internalQuery, mutation, query } from "./_generated/server";
+import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { isValidReceipt, normalizeReceipt } from "./lib/receipt";
 import {
@@ -141,7 +141,7 @@ export const watch = mutation({
   },
 });
 
-export const pause = mutation({
+export const pause = internalMutation({
   args: { caseId: v.id("cases") },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.caseId, { paused: true });
