@@ -4,9 +4,9 @@ import { v } from "convex/values";
 import { Firecrawl } from "firecrawl";
 import { internalAction, type ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { parseUscisStatus, snapshotHash } from "./lib/parseStatus";
-import { SIMULATE_LADDER } from "./lib/simulateLadder";
+import { SIMULATE_LADDER, type SimulatedStatus } from "./lib/simulateLadder";
 
 function fillReceiptScript(receiptNumber: string): string {
   const value = JSON.stringify(receiptNumber);
@@ -42,32 +42,45 @@ async function fetchPublicUscisStatus(receiptNumber: string) {
   };
 }
 
+type ApplySimulationResult =
+  | { skipped: true }
+  | { ok: true; title: string; step: number };
+
 async function applySimulation(
   ctx: ActionCtx,
   caseId: Id<"cases">,
   refreshOnly: boolean,
-) {
-  const watched = await ctx.runQuery(internal.cases.getInternal, { caseId });
+): Promise<ApplySimulationResult> {
+  const watched: Doc<"cases"> | null = await ctx.runQuery(
+    internal.cases.getInternal,
+    { caseId },
+  );
   if (!watched) return { skipped: true as const };
 
   const hasSnapshot = Boolean(watched.lastStatusTitle);
-  const step = refreshOnly
+  const step: number = refreshOnly
     ? Math.min(watched.simulateStep, SIMULATE_LADDER.length - 1)
     : hasSnapshot
       ? Math.min(watched.simulateStep + 1, SIMULATE_LADDER.length - 1)
       : 0;
 
-  const status = SIMULATE_LADDER[step] ?? SIMULATE_LADDER[0];
+  const status: SimulatedStatus = SIMULATE_LADDER[step] ?? SIMULATE_LADDER[0];
   const description = status.description.replaceAll(
     "DEMO000000001",
     watched.receiptNumber,
   );
-  const parsed = {
+  const parsed: {
+    statusTitle: string;
+    description: string;
+    formType?: string;
+    eventDate?: string;
+    lookupOk: true;
+  } = {
     statusTitle: status.statusTitle,
     description,
     formType: status.formType,
     eventDate: status.eventDate,
-    lookupOk: true as const,
+    lookupOk: true,
   };
   await ctx.runMutation(internal.snapshots.recordSnapshot, {
     caseId,
@@ -131,7 +144,7 @@ export const advanceSimulation = internalAction({
     caseId: v.id("cases"),
     refreshOnly: v.optional(v.boolean()),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<ApplySimulationResult> => {
     return await applySimulation(ctx, args.caseId, args.refreshOnly ?? false);
   },
 });

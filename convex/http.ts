@@ -106,9 +106,11 @@ async function verifySvix(
     keyBytes = new TextEncoder().encode(encoded);
   }
 
+  const keyCopy = new ArrayBuffer(keyBytes.byteLength);
+  new Uint8Array(keyCopy).set(keyBytes);
   const cryptoKey = await crypto.subtle.importKey(
     "raw",
-    keyBytes,
+    keyCopy,
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"],
