@@ -10,9 +10,10 @@
 - **Components:** @convex-dev/static-hosting
 - **Convex features:** schema, tables, indexes, queries, mutations, actions, HTTP actions, crons, scheduled functions
 - **Auth:** none
-- **AI models:** gpt-4o-mini
+- **AI models:** Groq `openai/gpt-oss-20b` (runtime); OpenAI `gpt-4o-mini` if `OPENAI_API_KEY` is set
+- **Built with:** Codex
 - **Started:** 2026-09-22T03:00:08Z
-- **Last updated:** 2026-09-22T05:40:00Z
+- **Last updated:** 2026-09-22T13:30:00Z
 
 ## Log
 
@@ -30,7 +31,8 @@ Built the Convex app: `cases`, `statusSnapshots`, `statusDiffs`, `inboundMail` (
 ## Secrets still needed
 
 - `FIRECRAWL_API_KEY` — live fetches from Convex (spike used Firecrawl keyless CLI)
-- `OPENAI_API_KEY` — LLM restatements (deterministic fallback exists)
+- `GROQ_API_KEY` — runtime LLM restatements on Groq (`openai/gpt-oss-20b`; `llama-3.1-8b-instant` retired for free/developer 2026-08-16). OpenAI Platform key is not used for this deploy path.
+- `OPENAI_API_KEY` — optional; if set, `convex/explain.ts` prefers OpenAI `gpt-4o-mini` over Groq. Deterministic fallback exists when neither key is set.
 - `AGENTMAIL_API_KEY`, `AGENTMAIL_INBOX_ID`, `AGENTMAIL_WEBHOOK_SECRET` — real mail
 - Convex captain auth: `npx convex login` (open https://dashboard.convex.dev/auth) or `CONVEX_DEPLOY_KEY`, then `npm run deploy`
 
@@ -43,3 +45,6 @@ Built the Convex app: `cases`, `statusSnapshots`, `statusDiffs`, `inboundMail` (
 
 ### 2026-09-22 - captain decisions
 Captain locked: DEMO simulate is one-shot (`simulateNext` does not set `simulate:true`; Firecrawl cron stays eligible). AgentMail webhook returns 401 when `AGENTMAIL_WEBHOOK_SECRET` is unset (local and prod). Public watch/pollNow/simulateNext stay keyless with a light per-receipt and global rate limit (`convex/lib/rateLimit.ts`, `rateLimits` table).
+
+### 2026-09-22 - Groq explain path
+Built with Codex. Runtime plain-language now prefers `OPENAI_API_KEY` → OpenAI `gpt-4o-mini`, else `GROQ_API_KEY` → Groq OpenAI-compatible chat completions. OpenAI Platform key is not used for this deploy path. Intended Groq model was free Llama `llama-3.1-8b-instant`; Groq retired that id for free/developer on 2026-08-16, so runtime uses Groq's replacement `openai/gpt-oss-20b`. Same system/user prompts and DISCLAIMER append; no-key and HTTP/parse errors still soft-fail to `fallbackPlainLanguage`.
