@@ -12,7 +12,7 @@
 - **Auth:** none
 - **AI models:** gpt-4o-mini
 - **Started:** 2026-09-22T03:00:08Z
-- **Last updated:** 2026-09-22T03:20:00Z
+- **Last updated:** 2026-09-22T03:25:00Z
 
 ## Log
 
@@ -22,7 +22,7 @@ Placeholder README for the Binding Status Desk immigration wedge.
 ### 2026-09-22 - d09e541
 Placeholder `hackathon.md` for the All Gas / vibeapps submission.
 
-### 2026-09-22 - working tree
+### 2026-09-22 - fb4836e
 Spiked public USCIS Case Status Online. Naive HTTP GET to `https://egov.uscis.gov/` is Cloudflare 403. Firecrawl scrape of the landing page returns the receipt form (`#receipt_number`, disabled `button[name=initCaseSearch]`). Firecrawl Interact was Forbidden on the keyless tier. Scrape+actions with a native HTMLInputElement value setter, `input`/`change` events, and a click on Check Status returned usable status text for `IOE0900000001` (`h2#landing-page-header` = “Card Was Delivered To Me By The Post Office”, following paragraph with date August 10, 2015). No permit-desk fallback: Firecrawl returned status text. Documented in `docs/spike-uscis.md`.
 
 Built the Convex app: `cases`, `statusSnapshots`, `statusDiffs`, `inboundMail` (`convex/schema.ts`); public watch/poll/simulate mutations and live queries (`convex/cases.ts`); snapshot + diff engine (`convex/snapshots.ts`, `convex/lib/diff.ts`, `convex/lib/parseStatus.ts`); Firecrawl Node action (`convex/poll.ts`); OpenAI restatement action labeled not legal advice (`convex/explain.ts`); AgentMail send, inbound webhook, and inbox poll (`convex/mail.ts`, `convex/http.ts`); 10-minute status cron and 5-minute mail cron (`convex/crons.ts`); Vite UI with one paste-receipt flow and a clearly labeled DEMO simulate ladder (`src/App.tsx`); static hosting component (`convex/convex.config.ts`). Live `*.convex.site` URL is still blocked on Convex login / deploy key.
