@@ -18,19 +18,19 @@ http.route({
   method: "POST",
   handler: httpAction(async (ctx, request) => {
     const raw = await request.text();
-    const secret = process.env.AGENTMAIL_WEBHOOK_SECRET;
-    // TODO(ask-user): fail-closed when AGENTMAIL_WEBHOOK_SECRET unset
-    if (secret) {
-      const ok = await verifySvix(
-        secret,
-        request.headers.get("svix-id"),
-        request.headers.get("svix-timestamp"),
-        raw,
-        request.headers.get("svix-signature"),
-      );
-      if (!ok) {
-        return new Response("invalid signature", { status: 401 });
-      }
+    const secret = process.env.AGENTMAIL_WEBHOOK_SECRET?.trim();
+    if (!secret) {
+      return new Response("webhook secret not configured", { status: 401 });
+    }
+    const ok = await verifySvix(
+      secret,
+      request.headers.get("svix-id"),
+      request.headers.get("svix-timestamp"),
+      raw,
+      request.headers.get("svix-signature"),
+    );
+    if (!ok) {
+      return new Response("invalid signature", { status: 401 });
     }
 
     let payload: {

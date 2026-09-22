@@ -50,4 +50,10 @@ export default defineSchema({
     handled: v.string(),
     receiptNumber: v.optional(v.string()),
   }).index("by_eventId", ["eventId"]),
+
+  rateLimits: defineTable({
+    key: v.string(),
+    windowStart: v.number(),
+    count: v.number(),
+  }).index("by_key", ["key"]),
 });

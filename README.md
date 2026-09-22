@@ -38,6 +38,8 @@ npx convex dev          # writes .env.local with VITE_CONVEX_URL
 npm run dev             # Vite on localhost
 ```
 
+Webhook testing (local and prod) needs `AGENTMAIL_WEBHOOK_SECRET`. Unsigned POSTs are rejected with 401.
+
 Parser tests (no network):
 
 ```bash
@@ -54,7 +56,7 @@ Set these on the Convex deployment (`npx convex env set NAME value` or Dashboard
 | `OPENAI_API_KEY` | LLM restatements | If missing, diffs still store a deterministic restatement. Model: `gpt-4o-mini`. |
 | `AGENTMAIL_API_KEY` | Outbound + inbound mail | `am_…` from [AgentMail](https://www.agentmail.to/docs/quickstart). |
 | `AGENTMAIL_INBOX_ID` | Mail | Inbox used to send and list messages. |
-| `AGENTMAIL_WEBHOOK_SECRET` | Signed inbound webhook | Svix `whsec_…`. If unset, the webhook still accepts POSTs so you can test; set this before sharing the URL. |
+| `AGENTMAIL_WEBHOOK_SECRET` | Signed inbound webhook | Svix `whsec_…`. **Required in local and prod.** If unset, `POST /api/agentmail/webhook` returns 401 and does not process the body. |
 
 Frontend build:
 
@@ -88,7 +90,9 @@ If this Cloud Agent cannot complete `npx convex login`, a human must open [https
 
 ## DEMO simulate
 
-Check **DEMO simulate mode** before watching, or press **DEMO: simulate a change** on a watched receipt. Simulated rows are labeled in the timeline. They are not USCIS results.
+Press **DEMO: simulate a change** on a watched receipt to advance one fake ladder step. That click is one-shot: it does not pin the receipt in demo mode or skip Firecrawl cron. Simulated rows are labeled in the timeline. They are not USCIS results.
+
+Public `watch` / `pollNow` / `simulateNext` stay keyless for the hackathon demo, with a light per-receipt and global cap (3 Firecrawl watches or checks per receipt per 10 minutes, 20 Firecrawl-triggering public calls per 10 minutes globally, 10 simulate clicks per case per 10 minutes).
 
 ## Out of scope
 

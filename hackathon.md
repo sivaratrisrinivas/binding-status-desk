@@ -12,7 +12,7 @@
 - **Auth:** none
 - **AI models:** gpt-4o-mini
 - **Started:** 2026-09-22T03:00:08Z
-- **Last updated:** 2026-09-22T03:25:00Z
+- **Last updated:** 2026-09-22T05:40:00Z
 
 ## Log
 
@@ -40,3 +40,6 @@ Built the Convex app: `cases`, `statusSnapshots`, `statusDiffs`, `inboundMail` (
 2. Paste `IOE0900000001` and press Watch this receipt (real Firecrawl path).
 3. Press **DEMO: simulate a change** to force a labeled fake diff.
 4. Optional: add an email so AgentMail fires on the next real or simulated diff.
+
+### 2026-09-22 - captain decisions
+Captain locked: DEMO simulate is one-shot (`simulateNext` does not set `simulate:true`; Firecrawl cron stays eligible). AgentMail webhook returns 401 when `AGENTMAIL_WEBHOOK_SECRET` is unset (local and prod). Public watch/pollNow/simulateNext stay keyless with a light per-receipt and global rate limit (`convex/lib/rateLimit.ts`, `rateLimits` table).

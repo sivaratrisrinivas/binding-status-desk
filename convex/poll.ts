@@ -91,14 +91,6 @@ export const fetchCase = internalAction({
     });
     if (!watched || watched.paused) return { skipped: true as const };
 
-    if (watched.simulate) {
-      return await applySimulation(
-        ctx,
-        args.caseId,
-        Boolean(watched.lastStatusTitle),
-      );
-    }
-
     try {
       const parsed = await fetchPublicUscisStatus(watched.receiptNumber);
       if (!parsed.lookupOk) {

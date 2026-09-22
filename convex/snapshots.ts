@@ -143,7 +143,6 @@ export const listDueCaseIds = internalMutation({
       .withIndex("by_paused_polled", (q) => q.eq("paused", false))
       .take(50);
     for (const row of rows) {
-      if (row.simulate) continue;
       if (row.lastPolledAt !== undefined && row.lastPolledAt >= staleBefore) {
         break;
       }

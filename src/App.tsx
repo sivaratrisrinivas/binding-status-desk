@@ -20,7 +20,6 @@ export default function App() {
   const params = new URLSearchParams(window.location.search);
   const [receipt, setReceipt] = useState(params.get("r") ?? "");
   const [email, setEmail] = useState("");
-  const [simulate, setSimulate] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,7 +59,6 @@ export default function App() {
       const result = await watch({
         receiptNumber,
         notifyEmail: email.trim() || undefined,
-        simulate,
       });
       const next = new URL(window.location.href);
       next.searchParams.set("r", result.receiptNumber);
@@ -119,19 +117,6 @@ export default function App() {
           onChange={(event) => setEmail(event.target.value)}
         />
 
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={simulate}
-            onChange={(event) => setSimulate(event.target.checked)}
-          />
-          <span>
-            <strong>DEMO simulate mode.</strong> Clearly fake status steps so
-            judges can see diffs without a changing real receipt. Not a USCIS
-            result.
-          </span>
-        </label>
-
         <div className="row">
           <button className="primary" type="submit" disabled={busy}>
             {busy ? "Starting…" : "Watch this receipt"}
@@ -141,7 +126,14 @@ export default function App() {
               className="ghost"
               type="button"
               disabled={busy}
-              onClick={() => pollNow({ caseId: watched._id })}
+              onClick={() => {
+                setError(null);
+                void pollNow({ caseId: watched._id }).catch((err: unknown) => {
+                  setError(
+                    err instanceof Error ? err.message : "Could not check the public page.",
+                  );
+                });
+              }}
             >
               Check public page now
             </button>
@@ -151,7 +143,14 @@ export default function App() {
               className="demo"
               type="button"
               disabled={busy}
-              onClick={() => simulateNext({ caseId: watched._id })}
+              onClick={() => {
+                setError(null);
+                void simulateNext({ caseId: watched._id }).catch((err: unknown) => {
+                  setError(
+                    err instanceof Error ? err.message : "Could not simulate a change.",
+                  );
+                });
+              }}
             >
               DEMO: simulate a change
             </button>

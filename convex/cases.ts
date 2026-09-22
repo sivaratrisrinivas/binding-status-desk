@@ -2,6 +2,13 @@ import { v } from "convex/values";
 import { internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { isValidReceipt, normalizeReceipt } from "./lib/receipt";
+import {
+  consumeRateLimit,
+  FIRECRAWL_GLOBAL,
+  POLL_PER_CASE,
+  SIMULATE_PER_CASE,
+  WATCH_PER_RECEIPT,
+} from "./lib/rateLimit";
 
 function isEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -76,7 +83,6 @@ export const watch = mutation({
   args: {
     receiptNumber: v.string(),
     notifyEmail: v.optional(v.string()),
-    simulate: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const receiptNumber = normalizeReceipt(args.receiptNumber);
@@ -92,12 +98,14 @@ export const watch = mutation({
       throw new Error("That email address does not look valid.");
     }
 
+    await consumeRateLimit(ctx, `watch:${receiptNumber}`, WATCH_PER_RECEIPT);
+    await consumeRateLimit(ctx, "firecrawl:global", FIRECRAWL_GLOBAL);
+
     const existing = await ctx.db
       .query("cases")
       .withIndex("by_receipt", (q) => q.eq("receiptNumber", receiptNumber))
       .unique();
 
-    // TODO(ask-user): public watch/pollNow/simulateNext quota / auth for shared demo
     const now = Date.now();
     let caseId = existing?._id;
     if (existing) {
@@ -108,7 +116,7 @@ export const watch = mutation({
         notifyEmail?: string;
       } = {
         paused: false,
-        simulate: args.simulate ?? existing.simulate,
+        simulate: false,
         lastError: undefined,
       };
       // Only attach email when this case has none. Never clear or replace
@@ -122,7 +130,7 @@ export const watch = mutation({
         receiptNumber,
         notifyEmail,
         createdAt: now,
-        simulate: args.simulate ?? false,
+        simulate: false,
         simulateStep: 0,
         paused: false,
       });
@@ -145,7 +153,13 @@ export const pollNow = mutation({
   handler: async (ctx, args) => {
     const watched = await ctx.db.get(args.caseId);
     if (!watched) throw new Error("Case not found.");
-    await ctx.db.patch(args.caseId, { lastError: undefined, paused: false });
+    await consumeRateLimit(ctx, `poll:${args.caseId}`, POLL_PER_CASE);
+    await consumeRateLimit(ctx, "firecrawl:global", FIRECRAWL_GLOBAL);
+    await ctx.db.patch(args.caseId, {
+      lastError: undefined,
+      paused: false,
+      simulate: false,
+    });
     await ctx.scheduler.runAfter(0, internal.poll.fetchCase, {
       caseId: args.caseId,
     });
@@ -157,10 +171,15 @@ export const simulateNext = mutation({
   handler: async (ctx, args) => {
     const watched = await ctx.db.get(args.caseId);
     if (!watched) throw new Error("Case not found.");
-    // TODO(ask-user): sticky simulate:true vs one-shot ladder
-    await ctx.db.patch(args.caseId, { simulate: true, lastError: undefined });
+    await consumeRateLimit(ctx, `simulate:${args.caseId}`, SIMULATE_PER_CASE);
+    // One-shot ladder only. Never sticky-opt the receipt out of Firecrawl cron.
+    await ctx.db.patch(args.caseId, {
+      simulate: false,
+      lastError: undefined,
+    });
     await ctx.scheduler.runAfter(0, internal.poll.advanceSimulation, {
       caseId: args.caseId,
+      refreshOnly: false,
     });
   },
 });
