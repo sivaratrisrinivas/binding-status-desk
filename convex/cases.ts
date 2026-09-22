@@ -19,10 +19,23 @@ export const getByReceipt = query({
   handler: async (ctx, args) => {
     const receiptNumber = normalizeReceipt(args.receiptNumber);
     if (!isValidReceipt(receiptNumber)) return null;
-    return await ctx.db
+    const row = await ctx.db
       .query("cases")
       .withIndex("by_receipt", (q) => q.eq("receiptNumber", receiptNumber))
       .unique();
+    if (!row) return null;
+    // Public projection: omit notifyEmail and other private watcher fields.
+    return {
+      _id: row._id,
+      receiptNumber: row.receiptNumber,
+      createdAt: row.createdAt,
+      lastPolledAt: row.lastPolledAt,
+      lastError: row.lastError,
+      lastStatusTitle: row.lastStatusTitle,
+      simulate: row.simulate,
+      simulateStep: row.simulateStep,
+      paused: row.paused,
+    };
   },
 });
 
@@ -34,7 +47,16 @@ export const latestSnapshot = query({
       .withIndex("by_case", (q) => q.eq("caseId", args.caseId))
       .collect();
     rows.sort((a, b) => b.fetchedAt - a.fetchedAt);
-    return rows[0] ?? null;
+    const row = rows[0];
+    if (!row) return null;
+    return {
+      statusTitle: row.statusTitle,
+      description: row.description,
+      formType: row.formType,
+      eventDate: row.eventDate,
+      source: row.source,
+      fetchedAt: row.fetchedAt,
+    };
   },
 });
 
@@ -75,15 +97,26 @@ export const watch = mutation({
       .withIndex("by_receipt", (q) => q.eq("receiptNumber", receiptNumber))
       .unique();
 
+    // TODO(ask-user): public watch/pollNow/simulateNext quota / auth for shared demo
     const now = Date.now();
     let caseId = existing?._id;
     if (existing) {
-      await ctx.db.patch(existing._id, {
-        notifyEmail,
+      const patch: {
+        paused: boolean;
+        simulate: boolean;
+        lastError?: string;
+        notifyEmail?: string;
+      } = {
         paused: false,
         simulate: args.simulate ?? existing.simulate,
         lastError: undefined,
-      });
+      };
+      // Only attach email when this case has none. Never clear or replace
+      // another watcher's notifyEmail on the shared global-by-receipt row.
+      if (notifyEmail && !existing.notifyEmail) {
+        patch.notifyEmail = notifyEmail;
+      }
+      await ctx.db.patch(existing._id, patch);
     } else {
       caseId = await ctx.db.insert("cases", {
         receiptNumber,
@@ -124,6 +157,7 @@ export const simulateNext = mutation({
   handler: async (ctx, args) => {
     const watched = await ctx.db.get(args.caseId);
     if (!watched) throw new Error("Case not found.");
+    // TODO(ask-user): sticky simulate:true vs one-shot ladder
     await ctx.db.patch(args.caseId, { simulate: true, lastError: undefined });
     await ctx.scheduler.runAfter(0, internal.poll.advanceSimulation, {
       caseId: args.caseId,

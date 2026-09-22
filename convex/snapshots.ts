@@ -103,7 +103,6 @@ export const recordSnapshot = internalMutation({
     });
 
     await ctx.scheduler.runAfter(0, internal.explain.explainDiff, { diffId });
-    await ctx.scheduler.runAfter(0, internal.mail.notifyDiff, { diffId });
     return { changed: true, diffId, snapshotId };
   },
 });
@@ -112,6 +111,9 @@ export const setPlainLanguage = internalMutation({
   args: { diffId: v.id("statusDiffs"), plainLanguage: v.string() },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.diffId, { plainLanguage: args.plainLanguage });
+    await ctx.scheduler.runAfter(0, internal.mail.notifyDiff, {
+      diffId: args.diffId,
+    });
   },
 });
 
@@ -133,20 +135,26 @@ export const listDueCaseIds = internalMutation({
   args: {},
   handler: async (ctx) => {
     const staleBefore = Date.now() - 8 * 60 * 1000;
-    const cases = await ctx.db.query("cases").collect();
-    const due = cases.filter(
-      (row) =>
-        !row.paused &&
-        !row.simulate &&
-        (row.lastPolledAt === undefined || row.lastPolledAt < staleBefore),
-    );
-    due.sort((a, b) => (a.lastPolledAt ?? 0) - (b.lastPolledAt ?? 0));
-    const batch = due.slice(0, 6);
-    for (const [i, row] of batch.entries()) {
+    const batchCap = 6;
+    const due = [];
+    // [paused, lastPolledAt]: missing lastPolledAt sorts first, then oldest.
+    const rows = await ctx.db
+      .query("cases")
+      .withIndex("by_paused_polled", (q) => q.eq("paused", false))
+      .take(50);
+    for (const row of rows) {
+      if (row.simulate) continue;
+      if (row.lastPolledAt !== undefined && row.lastPolledAt >= staleBefore) {
+        break;
+      }
+      due.push(row);
+      if (due.length >= batchCap) break;
+    }
+    for (const [i, row] of due.entries()) {
       await ctx.scheduler.runAfter(i * 25_000, internal.poll.fetchCase, {
         caseId: row._id,
       });
     }
-    return batch.length;
+    return due.length;
   },
 });

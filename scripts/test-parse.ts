@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { parseHtml, parseMarkdown, parseUscisStatus } from "../convex/lib/parseStatus.ts";
+import { inboundMessageDedupeId } from "../convex/lib/inboundEvent.ts";
 
 const markdown = readFileSync(
   new URL("../docs/fixtures/uscis-delivered.md", import.meta.url),
@@ -24,5 +25,12 @@ const landing = parseUscisStatus({
   markdown: "# Case Status Online\n\n## Check Case Status\n\nEnter a Receipt Number\n",
 });
 assert.equal(landing.lookupOk, false);
+
+assert.equal(
+  inboundMessageDedupeId({ message_id: "msg_1", event_id: "evt_9" }),
+  "msg_1",
+);
+assert.equal(inboundMessageDedupeId({ messageId: "msg_2" }), "msg_2");
+assert.equal(inboundMessageDedupeId({ event_id: "evt_3" }), "evt_3");
 
 console.log("parse tests passed");

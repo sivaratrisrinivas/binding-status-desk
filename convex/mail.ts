@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { findReceiptInText, isValidReceipt, normalizeReceipt } from "./lib/receipt";
+import { inboundMessageDedupeId } from "./lib/inboundEvent";
 
 const DISCLAIMER =
   "Plain-language status watching of the public USCIS Case Status Online page. Not legal advice. Not affiliated with USCIS or DHS.";
@@ -161,11 +162,14 @@ export const pollInbox = internalAction({
     };
     const messages = body.messages ?? [];
     for (const message of messages) {
-      const eventId = message.message_id ?? message.messageId;
+      const eventId = inboundMessageDedupeId({
+        messageId: message.messageId,
+        message_id: message.message_id,
+      });
       if (!eventId) continue;
       const from = Array.isArray(message.from) ? message.from[0] : message.from;
       await ctx.runAction(internal.mail.ingestInbound, {
-        eventId: `poll:${eventId}`,
+        eventId,
         subject: message.subject,
         text: message.extracted_text ?? message.extractedText ?? message.text,
         fromEmail: from,

@@ -1,6 +1,7 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { inboundMessageDedupeId } from "./lib/inboundEvent";
 
 const http = httpRouter();
 
@@ -18,6 +19,7 @@ http.route({
   handler: httpAction(async (ctx, request) => {
     const raw = await request.text();
     const secret = process.env.AGENTMAIL_WEBHOOK_SECRET;
+    // TODO(ask-user): fail-closed when AGENTMAIL_WEBHOOK_SECRET unset
     if (secret) {
       const ok = await verifySvix(
         secret,
@@ -58,11 +60,12 @@ http.route({
     }
 
     const message = payload.message;
-    const eventId =
-      payload.event_id ??
-      payload.eventId ??
-      message?.message_id ??
-      message?.messageId;
+    const eventId = inboundMessageDedupeId({
+      messageId: message?.messageId,
+      message_id: message?.message_id,
+      eventId: payload.eventId,
+      event_id: payload.event_id,
+    });
     if (!eventId) {
       return new Response("missing event id", { status: 400 });
     }
