@@ -239,20 +239,26 @@ export const watchFromMail = internalMutation({
   },
   handler: async (ctx, args) => {
     const receiptNumber = normalizeReceipt(args.receiptNumber);
+    const notifyEmail = args.notifyEmail?.trim()
+      ? args.notifyEmail.trim()
+      : undefined;
     const existing = await ctx.db
       .query("cases")
       .withIndex("by_receipt", (q) => q.eq("receiptNumber", receiptNumber))
       .unique();
     let caseId = existing?._id;
     if (existing) {
-      await ctx.db.patch(existing._id, {
-        notifyEmail: args.notifyEmail ?? existing.notifyEmail,
-        paused: false,
-      });
+      const patch: { paused: boolean; notifyEmail?: string } = { paused: false };
+      // Mirror watch(): only attach email when this case has none. Never
+      // clear or replace another watcher's notifyEmail from inbound mail.
+      if (notifyEmail && !existing.notifyEmail) {
+        patch.notifyEmail = notifyEmail;
+      }
+      await ctx.db.patch(existing._id, patch);
     } else {
       caseId = await ctx.db.insert("cases", {
         receiptNumber,
-        notifyEmail: args.notifyEmail,
+        notifyEmail,
         createdAt: Date.now(),
         simulate: false,
         simulateStep: 0,
