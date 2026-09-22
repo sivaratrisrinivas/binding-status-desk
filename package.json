@@ -1,0 +1,30 @@
+{
+  "name": "binding-status-desk",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Paste a USCIS receipt number. Watch the public case status. See only what changed.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "convex:dev": "convex dev",
+    "deploy": "npx @convex-dev/static-hosting deploy",
+    "test:parse": "node --experimental-strip-types scripts/test-parse.ts",
+    "spike:uscis": "node --experimental-strip-types scripts/spike-fetch.ts"
+  },
+  "dependencies": {
+    "@convex-dev/static-hosting": "^0.2.1",
+    "convex": "^1.46.0",
+    "firecrawl": "^4.41.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.2",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.5"
+  }
+}
