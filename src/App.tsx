@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 
@@ -14,6 +14,19 @@ function formatWhen(ts: number): string {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(ts);
+}
+
+/** One-shot walkthrough: top to bottom in about 30 seconds. */
+const WALK_DURATION_MS = 30_000;
+
+function easeInOut(t: number): number {
+  if (t < 0.5) return 2 * t * t;
+  return 1 - ((-2 * t + 2) ** 2) / 2;
+}
+
+function maxWindowScroll(): number {
+  const root = document.scrollingElement ?? document.documentElement;
+  return Math.max(0, root.scrollHeight - root.clientHeight);
 }
 
 export default function App() {
@@ -42,6 +55,35 @@ export default function App() {
   const simulateNext = useMutation(api.cases.simulateNext);
 
   const waiting = watched && !snapshot && !watched.lastError;
+
+  useEffect(() => {
+    const walk = new URLSearchParams(window.location.search).get("walk");
+    if (walk !== "1") return;
+
+    const previousRestoration = history.scrollRestoration;
+    history.scrollRestoration = "manual";
+    window.scrollTo(0, 0);
+
+    let frame = 0;
+    let start: number | null = null;
+    let stopped = false;
+
+    const step = (now: number) => {
+      if (stopped) return;
+      if (start === null) start = now;
+      const t = Math.min(1, (now - start) / WALK_DURATION_MS);
+      const max = maxWindowScroll();
+      window.scrollTo(0, t >= 1 ? max : max * easeInOut(t));
+      if (t < 1) frame = requestAnimationFrame(step);
+    };
+
+    frame = requestAnimationFrame(step);
+    return () => {
+      stopped = true;
+      cancelAnimationFrame(frame);
+      history.scrollRestoration = previousRestoration;
+    };
+  }, []);
 
   const subtitle = useMemo(() => {
     if (!watched) return null;
